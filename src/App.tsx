@@ -8,7 +8,6 @@ import {
   Disc3,
   ExternalLink,
   Flame,
-  Instagram,
   Menu,
   MessageCircle,
   Minus,
