@@ -1,157 +1,284 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowRight,
-  BadgeCheck,
-  ChevronDown,
-  Clock3,
-  CreditCard,
-  Disc3,
-  ExternalLink,
-  Flame,
-  Menu,
-  MessageCircle,
-  Minus,
-  PackageCheck,
-  Plus,
-  QrCode,
-  Search,
-  Send,
-  ShoppingBag,
-  ShoppingCart,
-  Sparkles,
-  Star,
-  TimerReset,
-  Truck,
-  UserRound,
-  X,
-  Zap,
-  type LucideIcon,
+  BadgeCheck, ChevronDown, ChevronLeft, ChevronRight, Flame, Menu, MessageCircle, Minus,
+  Plus, QrCode, Search, ShoppingBag, ShoppingCart, Sparkles, Trash2, Truck, X, Zap,
 } from 'lucide-react';
 
-type Product = {
-  id: number;
-  name: string;
-  artist: string;
-  edition: string;
-  price: number;
-  reserve: number;
-  stock: string;
-  image: string;
-  badge: string;
-  badgeTone: 'purple' | 'pink' | 'gold';
-  action: string;
-};
+type Cat = 'musica' | 'beauty' | 'merch';
+type Product = { id: number; name: string; price: number; oldPrice?: number; reserve?: number; image: string; cat: Cat; date: string; sold: number };
+type CartItem = Product & { qty: number };
 
-type SmallProduct = {
-  id: number;
-  name: string;
-  label: string;
-  price: number;
-  oldPrice?: number;
-  image: string;
-};
+// ⚠️ Número real de la tienda (código de país + número, sin + ni espacios)
+const WHATSAPP = '59100000000';
+const img = (n: string) => `/img/${n}.jpg`;
 
-type IconType = LucideIcon;
+// Paleta tomada de las fotos de producto
+const C = { deep: '#5B0F7A', deepHover: '#46085E', orchid: '#E2A9F1', orchid2: '#CB9BDD', pill: '#EBDAF3', pink: '#FFF0F7', accent: '#A63BC8' };
+const STRIPES = `repeating-linear-gradient(90deg, ${C.orchid} 0 22px, ${C.orchid2} 22px 44px)`;
+const display = "font-['Bebas_Neue',Impact,sans-serif] uppercase tracking-wide";
 
-const images = {
-  persona:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuAFkbtGSkZglcrQ657y7NOMuyX9gjaSZiC2SG7WpSA3D7Tlg-Ve8ac-4d5Z0Jrz6TdwSEc2nonFW4tV14z1Z-fqEENBtzpKBLSon2S-Ua5OpbG7lu0z9w6-lslkkuuVq47V5t4ltln-n2HHazuhxM-WOSgbZA4yNz4P6-ov7UWvKnT8YmbJsYlaRCn-krMRYcZ2f0th-OiJE_RlPWfbtyag1rrpgbAEnWdTxqGbAimjddtTlsDHTpVBDw',
-  wings:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuAOZe9TyS1YSD_OA8w2xhcBskB-5_MJRgBrqOvOkyzTDeY-8A23E7YkQFMBrJCJsBONRS846VKDQTwY661r31n7AYtVnCj5Tj1LTz4wqO5V1ANV1c17fAsBxkt_ClvQM1acZkMKC7-AKGaOP1MHhINSJJRpikhLnsCiQEe-F5bmX7eejxKCAoEYuh57PplXAMZp_Zxh5ueNg0SYVGio6shJfQpbF0bi7i0OulkkgDozhSTEeVW8DjgJSA',
-  mostBeautiful:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuD7uQ3C1z7rpC4ShaS0uTsh_lW922i4xUgWzCrNWwIZe5X-n8y4ieUqoNVaYr3R3NXtyDRqjKHRLS1OWvrVY8MKqzAGD07VGKPdJcbiGOExvi_tSkfox9j386kXs1M-M8jUvymwY2IB1SvOi-TyfQe8gbUiX2PSXKWodtoE7hPYvX_hK5FaTUY7sZc2OF05lZSpqiHN8fXLHJt7wBAe9kd7AFwjbwr2xe6_AW8gY5fFKEYyDUb0RiLdaQ',
-  skool:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuAltbH6QVgNhmW7vJ65AXACH_5gViLCxR87rLDm2fN1ePEXSe_0CPOo-ZNbqe65XWLBUnx556pqCBk3zZDY1bgD1xRhYbJ41idkZBeDOQUs_wmRwFjbpyVw996CNGhuSb2kdfy8iDCAr3tAeRzC3QQ9o60K5WZPc-ZMjkQkRl5_BUfJ_Poyvbim6oJ-65S7XP2IHKqgWP9ZanEG_V8DfSjiu9FkQ4S1grZb9KWq2h3jVJGszfgQDmbOHw',
-  lightstick:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuC1qYYD0E0j2YJBi6jNFYUhHjN1uYwue98zOMVIj7QbjR21SvK0gDUXag_PYJwmp-S67RxJxHMfZk7hQ9H3h1lttIPPvqkgySOAGKuj6Sp_KsezKoTn23LKhMAanY3qUnhci0DpHbjwQLejauDzkCipwhnaKGKTcIuUQMbMIJq3nOJiqfrHYsO7NoUMq-gsGvHrcHF79KL-I8ibImrQU35oMjn8R36qHj_uyRThaemP',
-  serum:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuBdMh-nTWqzCjHTRz5y-7LwthgyHAAekHrksXlXbqZUItencTSdw4X8NmjOIpq2jgOxphtKOD_Y8kzb7qf1hD-1BC0yZASYS60D0NRpds6yiWIgiw84d6mO3LAnP6twx1FPsbEo1oaUfzapcFAfsknzjh7fCzSFy1E3OMBiyA4W0-E0RYT00f9XJdUMIvFtCu432PEVfsIRVsLWXrhnmf82TAWYs3S-SH8k3oZMM6VS',
-  binder:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuAp7_tRUo5GexcjphM4E5d8OXne51Quo-DAea7JP0paoVtA2suLMhCXqii5voM0K-P_GYs-iRJAN-zYVjKjvLMljxN1tA_ihjIazeQRjqPlJQdNDFoScYS8YcVOrQVI4D3412ymAMaJZhimHxLpmI4cwy9XM3rbqMkp9G3mWGqX80CrtPl2x1M3n76gAHtVid-FM1fPMdCkQ3gj457Po0eN4wbCPXVnkvOc4UQYKUK_',
-  strayKids:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuAADjQ5L1DOKSnBDMamx5u5p9h2XXP3Iyx69tdb5mTmsnQRihJONCz7Bz01SiHN-EOsodEwx9sOzEzBscmKyhGkjPumVBQYJX8kFJ5lFI2e-eY5HgG2b5-D8vMtzJloWZ1DhxLTN1UWtkOIzGBjMJk2k4c5j6eYzGLkhaODNfIOnNG5ABgw6hwGkG8ywLIKAgRXGOShWeKdpGNErYbIssWc7NmjR-SQJNqirouAbj8t',
-  newJeans:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuAYW1P7W9GMHQfISIdMabkTtX7QhUgJvIY0gDp6qnKgssz0sw9aCIoXO6EsTualdMw_9cl_sqMdW8scWYyAgKLDadhtPKXNbHt7VoEgKMumvlSQSQorqpmf3sMxq4uiJlIBJD4M15V1bGIOH8TSe11Y36fuyaga9OPLWjEbu3UdSHwtIzAwPyPLVCMOj_Ts7g3qG0x-x07hsaYkhk1iDeeBy50J9d3oozvSfNbfOv38',
-  joseon:
-    'https://lh3.googleusercontent.com/aida-public/AB6AXuDH4zRYfHF6Rsl8ewxT-z47DqIAMmTnpUZakw-oxVuRDtjZbzEJnXHsBpMjx05W1RHJdwkxXj5vqY54EWx1kfMANzfENyJZlo7S0cczEAMEZ179qcqYFoBG2eZl71CyhEsQeeCU4xQq5lPVyt8DHEYp7IOrA9NG4wOsGAaDEgp6yY3lFXTKVJY9YANFJNLjDXstgPImi0jPDzvDHVcFT7g8YU8AWL4BD6ekp2IO480O',
-  txt: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCH5agCFiSeW1XHye1I0MBreqVhSbKRLXEz3F3bVJjtuASRqwDcqWWYakgMj_pADRldK4VJV-_QbPkajW7LS7qjMFYUKPFlBropdiq3CzUPrOHmb2qIKzfXxDkufkdUMJXSDHdGLtxgPxN1t05n4hahz4fMbUEiTF2u3Kt-kFBqBFVv9M4QO_Y7vvZAYPhhsVy18G3gKwiMuzdhNPBbZ6CfIwewDHjfqgBlZFCgp0-5',
-};
-
-const products: Product[] = [
-  { id: 1, name: 'BTS - Wings (Vol. 2)', artist: 'BTS (방탄소년단)', edition: 'VOL. 2', price: 250, reserve: 150, stock: '3 disponibles en stock', image: images.wings, badge: 'Entrega inmediata', badgeTone: 'purple', action: 'Agregar al carrito' },
-  { id: 2, name: 'BTS - Map of the Soul: Persona', artist: 'BTS (방탄소년단)', edition: 'MINI ALBUM', price: 295, reserve: 150, stock: '2 unidades listas para envío', image: images.persona, badge: 'Entrega inmediata', badgeTone: 'purple', action: 'Agregar al carrito' },
-  { id: 3, name: 'BTS - The Most Beautiful Moment in Life', artist: 'BTS (방탄소년단)', edition: '3RD MINI ALBUM', price: 350, reserve: 150, stock: 'Última unidad en almacén', image: images.mostBeautiful, badge: 'Pink version', badgeTone: 'pink', action: 'Agregar al carrito' },
-  { id: 4, name: 'BTS - Skool Luv Affair Special Edition', artist: 'BTS (방탄소년단)', edition: 'SPECIAL EDITION', price: 380, reserve: 150, stock: 'Despacho hoy en Bolivia', image: images.skool, badge: 'Oferta especial', badgeTone: 'gold', action: 'Aprovechar oferta' },
+// Agrega aquí más productos (imagen en public/img/).
+// date: fecha de ingreso (define "Últimos productos") · sold: unidades vendidas (define "Más vendidos")
+// oldPrice: precio anterior; si lo pones, el producto aparece en "En oferta" (valores actuales de ejemplo, edítalos)
+const PRODUCTS: Product[] = [
+  { id: 1, name: 'Harper Bazaar Korea RM', price: 260, reserve: 150, image: img('harper-bazaar-rm'), cat: 'merch', date: '2026-11-14', sold: 12 },
+  { id: 2, name: 'Dalmajung 2022 RM', price: 150, image: img('dalmajung-rm'), cat: 'musica', date: '2026-11-10', sold: 30 },
+  { id: 3, name: 'Layover', price: 340, oldPrice: 380, reserve: 150, image: img('layover'), cat: 'musica', date: '2026-11-05', sold: 21 },
 ];
 
-const arrivals: SmallProduct[] = [
-  { id: 5, name: 'Stray Kids - ROCK-STAR (Postcard Ver.)', label: 'JYP ENTERTAINMENT', price: 230, image: images.strayKids },
-  { id: 6, name: "NewJeans - 2nd EP 'Get Up' (Bunny Bag)", label: 'ADOR / HYBE', price: 310, image: images.newJeans },
-  { id: 7, name: 'Relief Sun: Rice + Probiotics SPF50+', label: 'BEAUTY OF JOSEON', price: 135, image: images.joseon },
-  { id: 8, name: 'TXT - The Name Chapter: FREEFALL', label: 'BIGHIT MUSIC', price: 275, image: images.txt },
+// Slides del hero: últimas promociones
+const PROMOS: { tag: string; title: string; text: string; product?: Product }[] = [
+  { tag: 'Nuevo ingreso', title: 'Harper Bazaar Korea RM', text: 'Elige entre Type A, B o C. Entrega inmediata.', product: PRODUCTS[0] },
+  { tag: 'Más pedido', title: 'Layover', text: 'Las tres versiones disponibles. Reserva con 150 Bs.', product: PRODUCTS[2] },
+  { tag: 'Precio especial', title: 'Dalmajung 2022 RM', text: 'Solo 150 Bs por unidad. Entrega inmediata.', product: PRODUCTS[1] },
+  { tag: 'Envíos', title: 'Llegamos a toda Bolivia', text: 'Paga con QR Simple y recibe en tu ciudad.' },
 ];
 
-const deals: SmallProduct[] = [
-  { id: 9, name: 'Lightstick Oficial Ver. 3', label: '-20% OFF', price: 420, oldPrice: 525, image: images.lightstick },
-  { id: 10, name: 'Sérum Centella Calming 50ml', label: '-30% OFF', price: 115, oldPrice: 165, image: images.serum },
-  { id: 11, name: 'Photocard Binder Book + Sleeves', label: '-15% OFF', price: 95, oldPrice: 112, image: images.binder },
+const LATEST = [...PRODUCTS].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
+const BEST = [...PRODUCTS].sort((a, b) => b.sold - a.sold).slice(0, 3);
+const DEALS = PRODUCTS.filter((p) => p.oldPrice).sort((a, b) => (b.oldPrice! - b.price) / b.oldPrice! - (a.oldPrice! - a.price) / a.oldPrice!).slice(0, 3);
+
+const CATS: { key: Cat | 'todo'; label: string }[] = [
+  { key: 'todo', label: 'Todo' }, { key: 'musica', label: 'Música y álbumes' },
+  { key: 'beauty', label: 'K-Beauty' }, { key: 'merch', label: 'Merch oficial' },
+];
+const FAQS = [
+  ['¿Los productos son originales?', 'Sí. Vienen sellados de fábrica y cuentan para Hanteo y Circle Chart.'],
+  ['¿Cómo funciona la reserva con 150 Bs?', 'Apartas el producto con un adelanto por QR Simple. El saldo lo pagas cuando llega o antes del despacho.'],
+  ['¿Qué métodos de pago aceptan?', 'QR Simple, transferencia y Tigo Money.'],
+  ['¿Envían a todo el país?', 'Sí, a los 9 departamentos por courier o flota de terminal.'],
 ];
 
-const preorderItems = [
-  { name: "SEVENTEEN - Best Album '17 IS RIGHT HERE'", detail: 'Incluye POB oficial de Weverse y photocard aleatoria exclusiva.', total: 390, days: 15 },
-  { name: 'TWICE - With YOU-th (Digipack Ver.)', detail: 'Edición individual a elección con poster plegado oficial.', total: 210, days: 20 },
-  { name: 'IVE - IVE SWITCH (Photobook Ver.)', detail: 'Importación directa Starship Square con beneficio de preventa.', total: 285, days: 25 },
-];
+const bs = (n: number) => `${n} Bs`;
+const waUrl = (t: string) => `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(t)}`;
+const orderText = (items: CartItem[]) =>
+  `Hola K-Fan Shop, quiero hacer este pedido:\n${items.map((i) => `• ${i.qty}x ${i.name} — ${bs(i.price * i.qty)}`).join('\n')}\nTotal: ${bs(items.reduce((s, i) => s + i.price * i.qty, 0))}`;
+const loadCart = (): CartItem[] => { try { return JSON.parse(localStorage.getItem('kfan-cart') || '[]'); } catch { return []; } };
 
-const categoryItems: { title: string; subtitle: string; icon: IconType; color: string; target: string }[] = [
-  { title: 'Música & Álbumes', subtitle: 'BTS, Blackpink, Stray Kids, TXT', icon: Disc3, color: 'lavender', target: 'catalogo-destacado' },
-  { title: 'K-Beauty Skincare', subtitle: 'Sérums, tónicos & mascarillas', icon: Sparkles, color: 'rose', target: 'catalogo-destacado' },
-  { title: 'Souvenirs & Merch', subtitle: 'Lightsticks oficiales, photocards', icon: Zap, color: 'lilac', target: 'catalogo-destacado' },
-  { title: 'Entrega inmediata', subtitle: 'Despacho en 24 horas en Bolivia', icon: Truck, color: 'mint', target: 'catalogo-destacado' },
-];
+const btn = 'inline-flex items-center justify-center gap-1.5 rounded-xl text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#A63BC8] active:scale-95';
+const solid = { backgroundColor: C.deep, color: '#fff' };
 
-const faqs = [
-  { question: '¿Los productos son 100% originales de Corea?', answer: 'Totalmente originales y nuevos. Todos nuestros álbumes y lightsticks vienen sellados de fábrica con su sticker holográfico oficial de KOMCA y sus ventas cuentan para los rankings de Hanteo y Circle Chart.' },
-  { question: '¿Cómo funciona la opción de reserva con 150 Bs?', answer: 'Puedes apartar cualquier producto o álbum en preventa depositando un adelanto de 150 Bs mediante QR Simple. El saldo restante lo pagas cuando el producto llegue al país o antes de coordinar tu despacho final.' },
-  { question: '¿Qué métodos de pago aceptan en Bolivia?', answer: 'Aceptamos QR Simple interbancario sin costo adicional, transferencias directas y Tigo Money. También coordinamos pago contra entrega en puntos céntricos de La Paz.' },
-  { question: '¿Hacen envíos a todos los departamentos de Bolivia?', answer: 'Sí. Realizamos despachos a La Paz, Cochabamba, Santa Cruz, Sucre, Tarija, Oruro, Potosí, Beni y Pando mediante courier privado o flotas de terminal confiables.' },
-  { question: '¿Qué significa la etiqueta “Entrega inmediata”?', answer: 'Significa que el producto ya se encuentra físicamente en nuestros almacenes en Bolivia. Lo pagas hoy y se despacha de inmediato, normalmente en menos de 24 horas.' },
-];
+export default function App() {
+  const [query, setQuery] = useState('');
+  const [cat, setCat] = useState<Cat | 'todo'>('todo');
+  const [cart, setCart] = useState<CartItem[]>(loadCart);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [toast, setToast] = useState('');
+  const [faq, setFaq] = useState(0);
+  const [slide, setSlide] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const touchX = useRef(0);
 
-const formatBs = (value: number) => `${value} Bs`;
+  useEffect(() => { try { localStorage.setItem('kfan-cart', JSON.stringify(cart)); } catch { /* sin storage */ } }, [cart]);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(''), 2200); return () => clearTimeout(t); }, [toast]);
+  useEffect(() => {
+    if (paused) return;
+    const t = setInterval(() => setSlide((s) => (s + 1) % PROMOS.length), 5000);
+    return () => clearInterval(t);
+  }, [paused]);
 
-function Logo({ compact = false }: { compact?: boolean }) {
-  return (
-    <a className={`brand ${compact ? 'brand-compact' : ''}`} href="#inicio" aria-label="K-Fan Shop inicio">
-      <span className="brand-mark"><Sparkles size={compact ? 16 : 18} strokeWidth={2.5} /></span>
-      <span><strong>K-FAN</strong> <em>SHOP</em></span>
-    </a>
-  );
-}
+  const count = cart.reduce((s, i) => s + i.qty, 0);
+  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return PRODUCTS.filter((p) => (cat === 'todo' || p.cat === cat) && p.name.toLowerCase().includes(q));
+  }, [query, cat]);
 
-function SectionHeading({ eyebrow, title, copy, action }: { eyebrow: string; title: string; copy?: string; action?: string }) {
-  return (
-    <div className="section-heading">
-      <div>
-        <span className="eyebrow">{eyebrow}</span>
-        <h2>{title}</h2>
-        {copy && <p>{copy}</p>}
-      </div>
-      {action && <a className="text-link" href="#catalogo-destacado">{action}<ArrowRight size={16} /></a>}
-    </div>
-  );
-}
-
-function Header({ query, setQuery, cartCount, onCart }: { query: string; setQuery: (value: string) => void; cartCount: number; onCart: () => void }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const submitSearch = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    document.getElementById('catalogo-destacado')?.scrollIntoView({ behavior: 'smooth' });
+  const add = (p: Product, open = false) => {
+    setCart((c) => c.some((i) => i.id === p.id) ? c.map((i) => i.id === p.id ? { ...i, qty: i.qty + 1 } : i) : [...c, { ...p, qty: 1 }]);
+    if (open) setCartOpen(true); else setToast(`${p.name} agregado al carrito`);
   };
+  const setQty = (id: number, d: number) => setCart((c) => c.map((i) => i.id === id ? { ...i, qty: i.qty + d } : i).filter((i) => i.qty > 0));
+  const goCatalog = (k: Cat | 'todo') => { setCat(k); setMenuOpen(false); document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' }); };
+  const go = (d: number) => setSlide((s) => (s + d + PROMOS.length) % PROMOS.length);
 
   return (
-    <header className="site-header">
-      <div className="announcement"><Truck size={14} /><span>Envíos a toda Bolivia · Entregas inmediatas en La Paz, Cochabamba y Santa Cruz · Paga con QR Simple</span></div>
+    <div className="min-h-screen text-[#3B0A52] antialiased" style={{ backgroundColor: C.pink }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');`}</style>
+      {/* Manchas de color detrás del contenido: dan profundidad al efecto glass */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+        <div className="absolute -left-24 top-1/4 h-96 w-96 rounded-full bg-[#E2A9F1]/60 blur-3xl" />
+        <div className="absolute -right-24 top-1/2 h-96 w-96 rounded-full bg-[#F9B8DD]/60 blur-3xl" />
+        <div className="absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-[#CB9BDD]/50 blur-3xl" />
+      </div>
+
+      {/* HEADER */}
+      <header className="sticky top-0 z-40 bg-white shadow-sm">
+        <div className="px-4 py-1.5 text-center text-xs text-white" style={{ backgroundColor: C.deep }}>
+          <Truck className="mr-1.5 inline h-3.5 w-3.5" />Envíos a toda Bolivia · Paga con QR Simple
+        </div>
+        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
+          <button className="rounded-lg p-2 hover:bg-[#EBDAF3] lg:hidden" aria-label="Menú" onClick={() => setMenuOpen(!menuOpen)}>
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+          <a href="#" className={`${display} flex items-center gap-2 text-2xl`} style={{ color: C.deep }}>
+            <span className="grid h-9 w-9 place-items-center rounded-xl text-white" style={{ background: STRIPES, color: C.deep }}><Sparkles className="h-4 w-4" /></span>
+            K-Fan Shop
+          </a>
+          <form className="relative mx-2 hidden flex-1 md:block" onSubmit={(e) => { e.preventDefault(); goCatalog(cat); }}>
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A63BC8]" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar álbumes, revistas, photocards…"
+              className="w-full rounded-full border border-[#E2A9F1] bg-[#FFF0F7] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-[#A63BC8] focus:bg-white" />
+          </form>
+          <div className="ml-auto flex items-center gap-1">
+            <a href={waUrl('Hola K-Fan Shop, tengo una consulta')} target="_blank" rel="noreferrer"
+              className="hidden items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 sm:flex">
+              <MessageCircle className="h-4 w-4" />Soporte
+            </a>
+            <button onClick={() => setCartOpen(true)} aria-label={`Abrir carrito, ${count} productos`}
+              className="relative flex items-center gap-2 rounded-full py-2 pl-3 pr-4 text-sm font-bold text-white" style={{ backgroundColor: C.deep }}>
+              <ShoppingBag className="h-5 w-5" /><span className="hidden sm:inline">{bs(total)}</span>
+              {count > 0 && <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-xs font-bold text-white" style={{ backgroundColor: C.accent }}>{count}</span>}
+            </button>
+          </div>
+        </div>
+        <div className="px-4 pb-3 md:hidden">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A63BC8]" />
+            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar productos…"
+              className="w-full rounded-full border border-[#E2A9F1] bg-[#FFF0F7] py-2.5 pl-10 pr-4 text-sm outline-none focus:border-[#A63BC8]" />
+          </div>
+        </div>
+        <nav className={`border-t border-[#EBDAF3] ${menuOpen ? 'block' : 'hidden'} lg:block`}>
+          <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-2 text-sm font-semibold lg:flex-row lg:items-center lg:gap-6">
+            {CATS.map((c) => (
+              <button key={c.key} onClick={() => goCatalog(c.key)} className="rounded-md px-2 py-1.5 text-left hover:text-[#A63BC8]" style={{ color: cat === c.key ? C.accent : C.deep }}>{c.label}</button>
+            ))}
+            <a href="#ultimos" onClick={() => setMenuOpen(false)} className="px-2 py-1.5" style={{ color: C.deep }}>Últimos</a>
+            <a href="#vendidos" onClick={() => setMenuOpen(false)} className="px-2 py-1.5" style={{ color: C.deep }}>Más vendidos</a>
+            <a href="#ofertas" onClick={() => setMenuOpen(false)} className="flex items-center gap-1 px-2 py-1.5 text-[#A63BC8]"><Flame className="h-4 w-4" />Ofertas</a>
+            <span className="ml-auto hidden items-center gap-1 text-xs text-emerald-700 lg:flex"><BadgeCheck className="h-4 w-4" />100% original de Corea</span>
+          </div>
+        </nav>
+      </header>
+
+      <main className="relative z-10">
+        {/* HERO SLIDER */}
+        <section style={{ background: STRIPES }} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
+          onTouchStart={(e) => { touchX.current = e.touches[0].clientX; }}
+          onTouchEnd={(e) => { const d = e.changedTouches[0].clientX - touchX.current; if (Math.abs(d) > 50) go(d < 0 ? 1 : -1); }}>
+          <div className="relative mx-auto max-w-7xl overflow-hidden">
+            <div className="flex transition-transform duration-700 ease-out" style={{ transform: `translateX(-${slide * 100}%)` }}>
+              {PROMOS.map((s, i) => (
+                <div key={i} className="grid w-full shrink-0 items-center gap-6 px-12 py-8 md:grid-cols-2 md:px-20 md:py-12" aria-hidden={slide !== i}>
+                  <div className="order-2 text-center md:order-1 md:text-left">
+                    <span className={`${display} inline-block rounded-full bg-white px-4 py-1 text-lg`} style={{ color: C.deep }}>{s.tag}</span>
+                    <h1 className={`${display} mt-3 text-5xl leading-none md:text-7xl`} style={{ color: C.deep }}>{s.title}</h1>
+                    <p className="mx-auto mt-3 max-w-md text-base font-medium md:mx-0" style={{ color: C.deep }}>{s.text}</p>
+                    {s.product && <p className={`${display} mt-3 text-4xl`} style={{ color: C.deep }}>Precio: {bs(s.product.price)}</p>}
+                    <div className="mt-5 flex flex-wrap justify-center gap-3 md:justify-start">
+                      {s.product ? (
+                        <>
+                          <button onClick={() => add(s.product!, true)} className={`${btn} px-5 py-3`} style={solid}><Zap className="h-4 w-4" />Comprar ahora</button>
+                          <a href={waUrl(`Hola K-Fan Shop, quiero comprar: ${s.product.name} — ${bs(s.product.price)}`)} target="_blank" rel="noreferrer" className={`${btn} bg-emerald-500 px-5 py-3 text-white hover:bg-emerald-600`}>
+                            <MessageCircle className="h-4 w-4" />Comprar por WhatsApp
+                          </a>
+                        </>
+                      ) : (
+                        <button onClick={() => goCatalog('todo')} className={`${btn} px-5 py-3`} style={solid}><ShoppingCart className="h-4 w-4" />Ver catálogo</button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="order-1 md:order-2">
+                    {s.product ? (
+                      <div className="mx-auto max-w-sm rounded-3xl bg-white p-4 shadow-xl">
+                        <img src={s.product.image} alt={s.product.name} className="aspect-[4/3] w-full object-contain" />
+                        <span className={`${display} mt-2 inline-block rounded-lg px-3 py-1 text-lg`} style={{ backgroundColor: C.pill, color: C.deep }}>Entrega inmediata</span>
+                      </div>
+                    ) : (
+                      <div className="mx-auto grid aspect-[4/3] max-w-sm place-items-center rounded-3xl bg-white shadow-xl"><Truck className="h-20 w-20" style={{ color: C.deep }} /></div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => go(-1)} aria-label="Anterior" className="absolute left-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white shadow" style={{ color: C.deep }}><ChevronLeft className="h-5 w-5" /></button>
+            <button onClick={() => go(1)} aria-label="Siguiente" className="absolute right-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white shadow" style={{ color: C.deep }}><ChevronRight className="h-5 w-5" /></button>
+            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2">
+              {PROMOS.map((_, i) => (
+                <button key={i} onClick={() => setSlide(i)} aria-label={`Ir a la promoción ${i + 1}`} className="h-2.5 rounded-full transition-all" style={{ width: slide === i ? 28 : 10, backgroundColor: slide === i ? C.deep : '#fff' }} />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* BENEFICIOS */}
+        <section className="mx-auto grid max-w-7xl gap-3 px-4 py-8 sm:grid-cols-3">
+          {([[Zap, 'Entrega inmediata', 'Stock físico en Bolivia, sin aduanas.'], [QrCode, 'Paga con QR Simple', 'Sin comisiones. Confirmación en minutos.'], [Truck, 'Envíos a todo el país', 'Courier o flota de terminal.']] as const).map(([I, t, d]) => (
+            <div key={t} className="flex items-start gap-3 rounded-2xl bg-white p-4 ring-1 ring-[#E2A9F1]">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: C.pill, color: C.deep }}><I className="h-5 w-5" /></span>
+              <div><h3 className="font-bold">{t}</h3><p className="text-sm text-[#7a4a8f]">{d}</p></div>
+            </div>
+          ))}
+        </section>
+
+        {/* DESTACADOS DE LA HOME */}
+        {!query && (
+          <>
+            <Showcase id="ultimos" title="Últimos productos" sub="Lo más nuevo que llegó a la tienda" items={LATEST} add={add} tag={() => 'Nuevo'} />
+            <Showcase id="vendidos" title="Los más vendidos" sub="Los favoritos de nuestros clientes" items={BEST} add={add} tag={(_, i) => `Top ${i + 1}`} />
+            <Showcase id="ofertas" title="En oferta" sub="Precios rebajados por tiempo limitado" items={DEALS} add={add}
+              tag={(p) => `-${Math.round(((p.oldPrice! - p.price) / p.oldPrice!) * 100)}%`} />
+          </>
+        )}
+
+        {/* CATÁLOGO */}
+        <section id="catalogo" className="mx-auto max-w-7xl scroll-mt-40 px-4 pb-12">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <h2 className={`${display} text-4xl`} style={{ color: C.deep }}>Todos los productos</h2>
+            <div className="flex gap-2 overflow-x-auto">
+              {CATS.map((c) => (
+                <button key={c.key} onClick={() => setCat(c.key)} className="whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold"
+                  style={cat === c.key ? solid : { backgroundColor: C.pill, color: C.deep }}>{c.label}</button>
+              ))}
+            </div>
+          </div>
+          {visible.length === 0 ? (
+            <p className="rounded-2xl bg-white p-10 text-center text-[#7a4a8f]">No encontramos “{query}”. Prueba con otro nombre o categoría.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {visible.map((p) => <ProductCard key={p.id} p={p} add={add} />)}
+            </div>
+          )}
+        </section>
+
+        {/* FAQ */}
+        <section className="mx-auto max-w-3xl px-4 pb-16">
+          <h2 className={`${display} mb-4 text-4xl`} style={{ color: C.deep }}>Preguntas frecuentes</h2>
+          <div className="divide-y divide-[#EBDAF3] rounded-2xl bg-white ring-1 ring-[#E2A9F1]">
+            {FAQS.map(([q, a], i) => (
+              <div key={q}>
+                <button onClick={() => setFaq(faq === i ? -1 : i)} className="flex w-full items-center justify-between gap-3 p-4 text-left font-semibold" aria-expanded={faq === i}>
+                  {q}<ChevronDown className={`h-4 w-4 shrink-0 transition ${faq === i ? 'rotate-180' : ''}`} />
+                </button>
+                {faq === i && <p className="px-4 pb-4 text-sm text-[#7a4a8f]">{a}</p>}
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
+
+      <a href={waUrl('Hola K-Fan Shop, necesito ayuda')} target="_blank" rel="noreferrer" aria-label="Escribir por WhatsApp"
+        className="fixed bottom-5 left-5 z-30 grid h-12 w-12 place-items-center rounded-full bg-emerald-500 text-white shadow-lg hover:bg-emerald-600"><MessageCircle className="h-6 w-6" /></a>
+
+      {toast && <div role="status" className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-full px-5 py-2.5 text-sm text-white shadow-lg" style={{ backgroundColor: C.deep }}>{toast}</div>}
+
+      {/* CARRITO */}
+      {cartOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-[#3B0A52]/50" onClick={() => setCartOpen(false)}>
+          <aside className="flex h-full w-full max-w-md flex-col bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4" style={{ background: STRIPES }}>
+              <h2 className={`${display} rounded-full bg-white px-4 py-1 text-2xl`} style={{ color: C.deep }}>Tu carrito ({count})</h2>
+              <button onClick={() => setCartOpen(false)} aria-label="Cerrar carrito" className="rounded-full bg-white p-2" style={{ color: C.deep }}><X className="h-5 w-5" /></button>
+            </div>
+            {cart.length === 0 ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center text-[#7a4a8f]">
+                <ShoppingBag className="h-10 w-10" /><p>Tu carrito está vacío. Agrega un producto para empezar.</p>
+                <button onClick={() => setCartOpen(false)} className={`${btn} px-5 py-2.5`} style={solid}>Ver productos</button>
+              </div>
+            ) : (
+          an>Envíos a toda Bolivia · Entregas inmediatas en La Paz, Cochabamba y Santa Cruz · Paga con QR Simple</span></div>
       <div className="header-main container">
         <button className="mobile-menu" aria-label="Abrir menú" onClick={() => setMobileOpen(!mobileOpen)}>{mobileOpen ? <X size={21} /> : <Menu size={21} />}</button>
         <Logo />
